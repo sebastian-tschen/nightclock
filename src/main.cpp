@@ -27,6 +27,16 @@
 
 #define FRAMES_PER_SECOND 30
 
+#define TIME 0
+#define FULLSCREEN 1
+#define DAY_MODE 0
+#define HOUR_MODE 1
+#define MINUTE_MODE 2
+#define CONSTANT_MODE 3
+#define AUTO_MODE 0
+#define FIXED_MODE 1
+
+
 bool gReverseDirection = false;
 cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
 
@@ -45,15 +55,16 @@ u_int8_t g;
 u_int8_t b;
 
 
-
 const char * key_ntp_server = "kntpserver";
 const char * key_tzone = "ktzone";
 const char * key_color = "kcolor";
+const char * key_hue_offset = "khueoffset";
 
 // change these params via CLI:
 const char * default_server = "pool.ntp.org";  
 const char * default_tzone = "CET-1CEST,M3.5.0,M10.5.0/3";
-const char * default_color = "ffffff";
+const int default_color = 0xffffff;
+const char * default_display_mode = TIME;
 
 bool wcli_setup_ready = false;
 
@@ -61,45 +72,10 @@ static uint8_t brightness_readings[BRIGHTNESS_AVERAGE] = {0};
 static uint8_t rollingBrightnesIndex = 0;
 static uint32_t sum = 0;
 static uint8_t average_brightness = 0;
-
-
-// Fire2012 by Mark Kriegsman, July 2012
-// as part of "Five Elements" shown here: http://youtu.be/knWiGsmgycY
-//// 
-// This basic one-dimensional 'fire' simulation works roughly as follows:
-// There's a underlying array of 'heat' cells, that model the temperature
-// at each point along the line.  Every cycle through the simulation, 
-// four steps are performed:
-//  1) All cells cool down a little bit, losing heat to the air
-//  2) The heat from each cell drifts 'up' and diffuses a little
-//  3) Sometimes randomly new 'sparks' of heat are added at the bottom
-//  4) The heat from each cell is rendered as a color into the leds array
-//     The heat-to-color mapping uses a black-body radiation approximation.
-//
-// Temperature is in arbitrary units from 0 (cold black) to 255 (white hot).
-//
-// This simulation scales it self a bit depending on NUM_LEDS; it should look
-// "OK" on anywhere from 20 to 100 LEDs without too much tweaking. 
-//
-// I recommend running this simulation at anywhere from 30-100 frames per second,
-// meaning an interframe delay of about 10-35 milliseconds.
-//
-// Looks best on a high-density LED setup (60+ pixels/meter).
-//
-//
-// There are two main parameters you can play with to control the look and
-// feel of your fire: COOLING (used in step 1 above), and SPARKING (used
-// in step 3 above).
-//
-// COOLING: How much does the air cool as it rises?
-// Less cooling = taller flames.  More cooling = shorter flames.
-// Default 50, suggested range 20-100 
-#define COOLING  55
-
-// SPARKING: What chance (out of 255) is there that a new spark will be lit?
-// Higher chance = more roaring fire.  Lower chance = more flickery fire.
-// Default 120, suggested range 50-200.
-#define SPARKING 120
+static uint8_t displayMode = TIME;
+static uint8_t colorMode = DAY_MODE;
+static uint8_t brightnessMode = AUTO_MODE;
+static uint8_t fixed_brightness = 100;
 
 
 
@@ -111,12 +87,15 @@ CRGB getColorForDay(struct tm *timeinfo) {
   uint8_t hue = map(totalMinutes, 0, 1440, 0, 255);
   
   // Add an offset value to the hue
-  uint8_t hueOffset = wcli.getInt(key_color,0);
+  uint8_t hueOffset = wcli.getInt(key_hue_offset,0);
   hue = (hue + hueOffset) % 256;
-
+  uint8_t brightness = fixed_brightness;
+  if (brightnessMode == AUTO_MODE){
+    brightness =  average_brightness;
+  }
   // Convert the hue to an RGB value
-  CRGB color = CHSV(hue, 255, average_brightness);
-  Serial.printf("D HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
+  CRGB color = CHSV(hue, 255, brightness);
+  ESP_LOGD(TAG,"D HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
 
@@ -128,12 +107,16 @@ CRGB getColorForMinute(struct tm *timeinfo) {
   uint8_t hue = map(timeinfo->tm_sec, 0, 59, 0, 255);
   
   // Add an offset value to the hue
-  uint8_t hueOffset = wcli.getInt(key_color,0);
+  uint8_t hueOffset = wcli.getInt(key_hue_offset,0);
   hue = (hue + hueOffset) % 256;
 
+  uint8_t brightness = fixed_brightness;
+  if (brightnessMode == AUTO_MODE){
+    brightness =  average_brightness;
+  }
   // Convert the hue to an RGB value
-  CRGB color = CHSV(hue, 255, average_brightness);
-  Serial.printf("M HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
+  CRGB color = CHSV(hue, 255, brightness);
+  ESP_LOGD(TAG,"M HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
 
@@ -145,21 +128,47 @@ CRGB getColorForHour(struct tm *timeinfo) {
   uint8_t hue = map(totalSeconds, 0, 3599, 0, 255);
   
   // Add an offset value to the hue
-  uint8_t hueOffset = wcli.getInt(key_color,0);
+  uint8_t hueOffset = wcli.getInt(key_hue_offset,0);
   hue = (hue + hueOffset) % 256;
 
+  uint8_t brightness = fixed_brightness;
+  if (brightnessMode == AUTO_MODE){
+    brightness =  average_brightness;
+  }
   // Convert the hue to an RGB value
-  CRGB color = CHSV(hue, 255, average_brightness);
-  Serial.printf("H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
+  CRGB color = CHSV(hue, 255, brightness);
+  ESP_LOGD(TAG,"H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
+
+CRGB getColor(struct tm *timeinfo) {
+  // get the color depending on the setting. Either by day, hour or minute, or a constant color.
+  if(colorMode == DAY_MODE){
+    return getColorForDay(timeinfo);
+  } else if(colorMode == HOUR_MODE){
+    return getColorForHour(timeinfo);
+  } else if(colorMode == MINUTE_MODE){
+    return getColorForMinute(timeinfo);
+  } else {
+    return CRGB(wcli.getInt(key_color, default_color));
+  }
+}
+
+
+
+void displayFullScreen(struct tm * info) {
+  CRGB color = getColor(info);
+  matrix.DrawFilledRectangle(0,0,MATRIX_WIDTH, MATRIX_HEIGHT, color);
+  matrix_show();
+}
+
 
 void displayTime(struct tm * info) {
 
     // matrix.DrawCircle(4,6,1,getColorForMinute(info));
     matrix.setFont(&Font3x5FixedNum);    
     matrix_clear();
-    CRGB color = getColorForDay(info);
+    CRGB color = getColor(info);
     // print hours
     matrix.DrawChar(1,5,info->tm_hour/10+'0',color,0,1);
     matrix.DrawChar(5,5,info->tm_hour%10+'0',color,0,1);
@@ -170,6 +179,14 @@ void displayTime(struct tm * info) {
     matrix_show();
 
     
+}
+
+void display(struct tm * info) {
+  if(displayMode == TIME){
+    displayTime(info);
+  } else if(displayMode == FULLSCREEN){
+    displayFullScreen(info);
+  }
 }
 
 class mESP32WifiCLICallbacks : public ESP32WifiCLICallbacks {
@@ -212,11 +229,68 @@ void setTimeZone(char *args, Stream *response) {
 
 void setColor(char *args, Stream *response) {
   Pair<String, String> operands = wcli.parseCommand(args);
-  String colorHueOffset = operands.first();
+  String colorHex = operands.first();
 
+  uint32_t colorValue = strtol(colorHex.c_str(), NULL, 16);
+  CRGB color = CRGB(colorValue);
+  Serial.printf("Setting color to %d %d %d\r\n", color.r, color.g, color.b);
+  wcli.setInt(key_color, colorValue);
+}
+
+void setBrightness(char *args, Stream *response) {
+  Pair<String, String> operands = wcli.parseCommand(args);
+  String brightness = operands.first();
+  if(brightness == "auto"){
+    Serial.println("Setting brightness to auto");
+    brightnessMode = AUTO_MODE;
+  } else {
+    uint8_t brightnessValue = strtol(brightness.c_str(), NULL, 10);
+    Serial.printf("Setting brightness to %d\r\n", brightnessValue);
+    brightnessMode = FIXED_MODE;
+    fixed_brightness = brightnessValue;
+  }
+}
+
+void setColorMode(char *args, Stream *response){
+  Pair<String, String> operands = wcli.parseCommand(args);
+  String mode = operands.first();
+  if(mode == "D"){
+    Serial.println("Setting color mode to day");
+    colorMode = DAY_MODE;
+  } else if(mode == "H"){
+    Serial.println("Setting color mode to hour");
+    colorMode = HOUR_MODE;
+  } else if(mode == "M"){
+    Serial.println("Setting color mode to minute");
+    colorMode = MINUTE_MODE;
+  } else if(mode == "C"){
+    Serial.println("Setting color mode to constant");
+    colorMode = CONSTANT_MODE;
+  } else {
+    Serial.println("Invalid color mode. Use D for day, H for hour, M for minute and C for constant color");
+  }
+}
+
+void setDisplayMode(char *args, Stream *response){
+  Pair<String, String> operands = wcli.parseCommand(args);
+  String mode = operands.first();
+  if(mode == "T"){
+    Serial.println("Setting display mode to time");
+    displayMode = TIME;
+  } else if(mode == "F"){
+    Serial.println("Setting display mode to full screen");
+    displayMode = FULLSCREEN;
+  } else {
+    Serial.println("Invalid display mode. Use T for time or F for full screen");
+  }
+}
+
+void setHueOffset(char *args, Stream *response) {
+  Pair<String, String> operands = wcli.parseCommand(args);
+  String colorHueOffset = operands.first();
   uint8_t hueOffset = strtol(colorHueOffset.c_str(), NULL, 10);
   Serial.printf("Setting color hue offset to %d\r\n", hueOffset);
-  wcli.setInt(key_color, hueOffset);
+  wcli.setInt(key_hue_offset, hueOffset);
 }
 
 void printLocalTime(char *args, Stream *response) {
@@ -246,7 +320,7 @@ void updateBrightness() {
     average_brightness = sum / BRIGHTNESS_AVERAGE;
 
 
-    Serial.println(average_brightness);
+    ESP_LOGD(TAG, "%d",average_brightness);
 
 }
 
@@ -267,8 +341,10 @@ void loop() {
       FastLED.show();
   }
 
-  displayTime(&timeinfo);
-  updateBrightness();
+  display(&timeinfo);
+  if (brightnessMode == AUTO_MODE){
+    updateBrightness();
+  }
   while(!wcli_setup_ready) wcli.loop(); // only for fist setup
   wcli.loop();
   delay(1000 / FRAMES_PER_SECOND);
@@ -290,12 +366,17 @@ void setup() {
     wcli.add("ntpserver", &setNTPServer, "\tset NTP server. Default: pool.ntp.org");
     wcli.add("ntpzone", &setTimeZone, "\tset TZONE. https://tinyurl.com/4s44uyzn");
     wcli.add("time", &printLocalTime, "\t\tprint the current time");
-    wcli.add("color", &setColor, "\tset color hue offset");
-    
+    wcli.add("color", &setColor, "\tset constant color");
+    wcli.add("hueoffset", &setHueOffset, "\tset color hue offset");
+    wcli.add("displaymode", &setDisplayMode, "\tset display mode. T for time, F for full screen");
+    wcli.add("colormode", &setColorMode, "\tset Color mode. D for Day, H for Hour, M for Minute and C for constant color");
+    wcli.add("brightness", &setBrightness, "\tset brightness. can be 0-255 or auto");
+
     // NTP init
     updateTimeSettings();
     wcli_setup_ready = wcli.isConfigured();
     wcli.begin("nightclock");
+    wcli.setInt(key_hue_offset,0);
 
     time_t now;
     char strftime_buf[64];
@@ -303,7 +384,8 @@ void setup() {
     
 
     // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(0xFFC0F0);
-    FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
+    // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
+    FastLED.addLeds<WS2811, PIN, GRB>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
     FastLED.setBrightness(BRIGHTNESS);
   
 
@@ -319,7 +401,9 @@ void setup() {
     Serial.print(MATRIX_HEIGHT);
     Serial.print(" ");
     Serial.println(NUMMATRIX);
-    
+
+    esp_log_level_set(TAG, ESP_LOG_WARN); 
+    esp_log_level_set("*", ESP_LOG_WARN);
 }
 
 // vim:sts=4:sw=4
