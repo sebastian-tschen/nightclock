@@ -1,6 +1,7 @@
-#include <Adafruit_GFX.h>
-#include <FastLED_NeoMatrix.h>
+// #include <Adafruit_GFX.h>
 #include <FastLED.h>
+// #include <FastLED_GFX.h>
+#include <LEDMatrix.h>
 #include <tinifont.h>
 #include "OneButton.h"
 #include "WiFi.h"
@@ -14,21 +15,27 @@
 // Max is 255, 32 is a conservative value to not overload
 // a USB power supply (500mA) for 12x12 pixels.
 #define BRIGHTNESS 255
-
+#define BRIGHTNESS_AVERAGE 10
+#define MIN_BRIGHTNESS 32
 // #define delay FastLED.delay
 
-#define mw 9
-#define mh 12
-#define NUMMATRIX (mw*mh)
-CRGB leds[NUMMATRIX];
+#define MATRIX_WIDTH 9
+#define MATRIX_HEIGHT 12
+#define MATRIX_TYPE         VERTICAL_ZIGZAG_MATRIX
+#define NUMMATRIX (MATRIX_WIDTH*MATRIX_HEIGHT)
 // Define matrix width and height.
-FastLED_NeoMatrix *matrix = new FastLED_NeoMatrix(leds, mw, mh, 
-  NEO_MATRIX_BOTTOM     + NEO_MATRIX_RIGHT +
-    NEO_MATRIX_COLUMNS + NEO_MATRIX_ZIGZAG);
+
+#define FRAMES_PER_SECOND 30
+
+bool gReverseDirection = false;
+cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
 
 
 void matrix_show() {
-    matrix->show();
+    FastLED.show();
+}
+void matrix_clear() {
+    FastLED.clear();
 }
 
 static const char* TAG = "nightclock";
@@ -37,9 +44,6 @@ u_int8_t r;
 u_int8_t g;
 u_int8_t b;
 
-
-OneButton button1(14, true);
-OneButton button2(15, true);
 
 
 const char * key_ntp_server = "kntpserver";
@@ -53,23 +57,58 @@ const char * default_color = "ffffff";
 
 bool wcli_setup_ready = false;
 
-static uint8_t brightness_readings[10] = {0};
+static uint8_t brightness_readings[BRIGHTNESS_AVERAGE] = {0};
 static uint8_t rollingBrightnesIndex = 0;
 static uint32_t sum = 0;
 static uint8_t average_brightness = 0;
 
 
-void matrix_clear() {
-    // clear does not work properly with multiple matrices connected via parallel inputs
-    memset(leds, 0, sizeof(leds));
-}
+// Fire2012 by Mark Kriegsman, July 2012
+// as part of "Five Elements" shown here: http://youtu.be/knWiGsmgycY
+//// 
+// This basic one-dimensional 'fire' simulation works roughly as follows:
+// There's a underlying array of 'heat' cells, that model the temperature
+// at each point along the line.  Every cycle through the simulation, 
+// four steps are performed:
+//  1) All cells cool down a little bit, losing heat to the air
+//  2) The heat from each cell drifts 'up' and diffuses a little
+//  3) Sometimes randomly new 'sparks' of heat are added at the bottom
+//  4) The heat from each cell is rendered as a color into the leds array
+//     The heat-to-color mapping uses a black-body radiation approximation.
+//
+// Temperature is in arbitrary units from 0 (cold black) to 255 (white hot).
+//
+// This simulation scales it self a bit depending on NUM_LEDS; it should look
+// "OK" on anywhere from 20 to 100 LEDs without too much tweaking. 
+//
+// I recommend running this simulation at anywhere from 30-100 frames per second,
+// meaning an interframe delay of about 10-35 milliseconds.
+//
+// Looks best on a high-density LED setup (60+ pixels/meter).
+//
+//
+// There are two main parameters you can play with to control the look and
+// feel of your fire: COOLING (used in step 1 above), and SPARKING (used
+// in step 3 above).
+//
+// COOLING: How much does the air cool as it rises?
+// Less cooling = taller flames.  More cooling = shorter flames.
+// Default 50, suggested range 20-100 
+#define COOLING  55
 
-uint16_t getColorForDay(struct tm *timeinfo) {
+// SPARKING: What chance (out of 255) is there that a new spark will be lit?
+// Higher chance = more roaring fire.  Lower chance = more flickery fire.
+// Default 120, suggested range 50-200.
+#define SPARKING 120
+
+
+
+CRGB getColorForDay(struct tm *timeinfo) {
   // Calculate the total minutes since midnight
   int totalMinutes = timeinfo->tm_hour * 60 + timeinfo->tm_min;
 
   // Calculate the hue value (0-255) based on the total minutes
-  uint8_t hue = map(timeinfo->tm_min, 0, 59, 0, 255);
+  uint8_t hue = map(totalMinutes, 0, 1440, 0, 255);
   
   // Add an offset value to the hue
   uint8_t hueOffset = wcli.getInt(key_color,0);
@@ -77,11 +116,11 @@ uint16_t getColorForDay(struct tm *timeinfo) {
 
   // Convert the hue to an RGB value
   CRGB color = CHSV(hue, 255, average_brightness);
-  Serial.printf("HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
-  return matrix->Color(color.r, color.g, color.b);
+  Serial.printf("D HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
+  return color;
 }
 
-uint16_t getColorForMinute(struct tm *timeinfo) {
+CRGB getColorForMinute(struct tm *timeinfo) {
   // Calculate the total minutes since midnight
   int totalMinutes = timeinfo->tm_hour * 60 + timeinfo->tm_min;
 
@@ -94,11 +133,11 @@ uint16_t getColorForMinute(struct tm *timeinfo) {
 
   // Convert the hue to an RGB value
   CRGB color = CHSV(hue, 255, average_brightness);
-  Serial.printf("HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
-  return matrix->Color(color.r, color.g, color.b);
+  Serial.printf("M HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
+  return color;
 }
 
-uint16_t getColorForHour(struct tm *timeinfo) {
+CRGB getColorForHour(struct tm *timeinfo) {
   // Calculate the total minutes since midnight
   int totalSeconds = timeinfo->tm_min * 60 + timeinfo->tm_sec;
 
@@ -111,30 +150,23 @@ uint16_t getColorForHour(struct tm *timeinfo) {
 
   // Convert the hue to an RGB value
   CRGB color = CHSV(hue, 255, average_brightness);
-  Serial.printf("HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
-  return matrix->Color(color.r, color.g, color.b);
+  Serial.printf("H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, average_brightness, color.r, color.g, color.b);
+  return color;
 }
 
 void displayTime(struct tm * info) {
 
-
-    matrix->setTextSize(1);
-    matrix->setFont(&Font3x5FixedNum);    
-    matrix->setTextColor(getColorForHour(info));
-    // matrix->setTextColor(matrix->Color(255,255,255));
+    // matrix.DrawCircle(4,6,1,getColorForMinute(info));
+    matrix.setFont(&Font3x5FixedNum);    
     matrix_clear();
-
+    CRGB color = getColorForDay(info);
     // print hours
-    matrix->setCursor(1, 5);
-    matrix->print(info->tm_hour/10);
-    matrix->setCursor(5, 5);
-    matrix->print(info->tm_hour%10);
+    matrix.DrawChar(1,5,info->tm_hour/10+'0',color,0,1);
+    matrix.DrawChar(5,5,info->tm_hour%10+'0',color,0,1);
 
     // print minutes
-    matrix->setCursor(1, 12);
-    matrix->print(info->tm_min/10);
-    matrix->setCursor(5, 12);
-    matrix->print(info->tm_min%10);
+    matrix.DrawChar(1,12,info->tm_min/10+'0',color,0,1);
+    matrix.DrawChar(5,12,info->tm_min%10+'0',color,0,1);
     matrix_show();
 
     
@@ -197,7 +229,9 @@ void printLocalTime(char *args, Stream *response) {
 }
 
 void updateBrightness() {
-    uint8_t brightness = map(analogRead(34),0,4095,50,255);
+
+  
+    uint8_t brightness = map(analogRead(34),0,4095,MIN_BRIGHTNESS,255);
 
     // Subtract the oldest reading from the sum
     sum -= brightness_readings[rollingBrightnesIndex];
@@ -206,30 +240,40 @@ void updateBrightness() {
     sum += brightness;
 
     // Move to the next index, wrapping around if necessary
-    rollingBrightnesIndex = (rollingBrightnesIndex + 1) % 10;
+    rollingBrightnesIndex = (rollingBrightnesIndex + 1) % BRIGHTNESS_AVERAGE;
 
     // Calculate the running average
-    average_brightness = sum / 10;
+    average_brightness = sum / BRIGHTNESS_AVERAGE;
+
 
     Serial.println(average_brightness);
 
 }
 
+void rainbow_wave(uint8_t thisSpeed, uint8_t deltaHue) {     // The fill_rainbow call doesn't support brightness levels.
+// uint8_t thisHue = beatsin8(thisSpeed,0,255);                // A simple rainbow wave.
+ uint8_t thisHue = beat8(thisSpeed,255);                     // A simple rainbow march.
+  
+ fill_rainbow(matrix[0], NUMMATRIX, thisHue, deltaHue);            // Use FastLED's fill_rainbow routine.
+ 
+}
+
 void loop() {
-  button1.tick();
-  button2.tick();
-  delay(3);
-  static uint32_t last_tick;
-  if (millis() - last_tick > 1000) {
-    struct tm timeinfo;
-    getLocalTime(&timeinfo);
-    displayTime(&timeinfo);
-    last_tick = millis();
-    updateBrightness();
+  struct tm timeinfo;
+  while (!getLocalTime(&timeinfo,1000 / FRAMES_PER_SECOND)){
+      updateBrightness();
+      FastLED.setBrightness(average_brightness);
+      rainbow_wave(10, 10);                                      // Speed, delta hue values.
+      FastLED.show();
   }
+
+  displayTime(&timeinfo);
+  updateBrightness();
   while(!wcli_setup_ready) wcli.loop(); // only for fist setup
   wcli.loop();
+  delay(1000 / FRAMES_PER_SECOND);
 }
+
 void setup() {
   pinMode(0,OUTPUT);
   digitalWrite(0,LOW);
@@ -256,21 +300,26 @@ void setup() {
     time_t now;
     char strftime_buf[64];
     struct tm timeinfo;
-
-    FastLED.addLeds<NEOPIXEL,PIN>(  leds, NUMMATRIX  ).setCorrection(0xFFC0F0);
     
+
+    // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(0xFFC0F0);
+    FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
+    FastLED.setBrightness(BRIGHTNESS);
+  
+
+    FastLED.clear();
+    FastLED.show();
+
     // Time for serial port to work?
     Serial.print("Init on pin: ");
     Serial.println(PIN);
     Serial.print("Matrix Size: ");
-    Serial.print(mw);
+    Serial.print(MATRIX_WIDTH);
     Serial.print(" ");
-    Serial.print(mh);
+    Serial.print(MATRIX_HEIGHT);
     Serial.print(" ");
     Serial.println(NUMMATRIX);
-    matrix->begin();
-    matrix->setTextWrap(false);
-    matrix->setBrightness(BRIGHTNESS);
+    
 }
 
 // vim:sts=4:sw=4
