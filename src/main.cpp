@@ -9,14 +9,16 @@
 #include "time.h"
 #include <ESP32WifiCLI.hpp>
 #include "pin_config.h"
+#include <ArduinoOTA.h>
 
 #define PIN 16
 
 // Max is 255, 32 is a conservative value to not overload
 // a USB power supply (500mA) for 12x12 pixels.
-#define BRIGHTNESS 255
 #define BRIGHTNESS_AVERAGE 10
-#define MIN_BRIGHTNESS 32
+#define MIN_BRIGHTNESS 30
+#define MIN_DARK_BRIGHTNESS 10
+#define MIN_COLOR CRGB(1,0,0)
 // #define delay FastLED.delay
 
 #define MATRIX_WIDTH 9
@@ -93,8 +95,14 @@ CRGB getColorForDay(struct tm *timeinfo) {
   if (brightnessMode == AUTO_MODE){
     brightness =  average_brightness;
   }
-  // Convert the hue to an RGB value
-  CRGB color = CHSV(hue, 255, brightness);
+  CRGB color;
+  if (brightness < MIN_BRIGHTNESS){
+    // use a dark red when embiant light is low
+    color = MIN_COLOR;
+  } else{
+    // Convert the hue to an RGB value
+    color = CHSV(hue, 255, brightness);
+  }
   ESP_LOGD(TAG,"D HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
@@ -114,8 +122,14 @@ CRGB getColorForMinute(struct tm *timeinfo) {
   if (brightnessMode == AUTO_MODE){
     brightness =  average_brightness;
   }
-  // Convert the hue to an RGB value
-  CRGB color = CHSV(hue, 255, brightness);
+  CRGB color;
+  if (brightness < MIN_BRIGHTNESS){
+    // use a dark red when embiant light is low
+    color = MIN_COLOR;
+  } else{
+    // Convert the hue to an RGB value
+    color = CHSV(hue, 255, brightness);
+  }
   ESP_LOGD(TAG,"M HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
@@ -135,8 +149,14 @@ CRGB getColorForHour(struct tm *timeinfo) {
   if (brightnessMode == AUTO_MODE){
     brightness =  average_brightness;
   }
-  // Convert the hue to an RGB value
-  CRGB color = CHSV(hue, 255, brightness);
+  CRGB color;
+  if (brightness < MIN_BRIGHTNESS){
+    // use a dark red when embiant light is low
+    color = MIN_COLOR;
+  } else{
+    // Convert the hue to an RGB value
+    color = CHSV(hue, 255, brightness);
+  }
   ESP_LOGD(TAG,"H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
@@ -305,7 +325,7 @@ void printLocalTime(char *args, Stream *response) {
 void updateBrightness() {
 
   
-    uint8_t brightness = map(analogRead(34),0,4095,MIN_BRIGHTNESS,255);
+    uint8_t brightness = map(analogRead(34),0,4095,MIN_DARK_BRIGHTNESS,255);
 
     // Subtract the oldest reading from the sum
     sum -= brightness_readings[rollingBrightnesIndex];
@@ -340,6 +360,7 @@ void loop() {
       rainbow_wave(10, 10);                                      // Speed, delta hue values.
       FastLED.show();
   }
+  FastLED.setBrightness(255);
 
   display(&timeinfo);
   if (brightnessMode == AUTO_MODE){
@@ -347,6 +368,7 @@ void loop() {
   }
   while(!wcli_setup_ready) wcli.loop(); // only for fist setup
   wcli.loop();
+  ArduinoOTA.handle();
   delay(1000 / FRAMES_PER_SECOND);
 }
 
@@ -384,9 +406,9 @@ void setup() {
     
 
     // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(0xFFC0F0);
-    // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
-    FastLED.addLeds<WS2811, PIN, GRB>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
-    FastLED.setBrightness(BRIGHTNESS);
+    FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
+    // FastLED.addLeds<WS2811, PIN, GRB>(matrix[0], matrix.Size()).setCorrection(UncorrectedColor);
+    FastLED.setBrightness(255);
   
 
     FastLED.clear();
@@ -404,6 +426,44 @@ void setup() {
 
     esp_log_level_set(TAG, ESP_LOG_WARN); 
     esp_log_level_set("*", ESP_LOG_WARN);
+
+
+
+  ArduinoOTA
+  .onStart([]() {
+    String type;
+    if (ArduinoOTA.getCommand() == U_FLASH) {
+      type = "sketch";
+    } else {  // U_SPIFFS
+      type = "filesystem";
+    }
+
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("Start updating " + type);
+  })
+  .onEnd([]() {
+    Serial.println("\nEnd");
+  })
+  .onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("Progress: %u%%\r", (progress / (total / 100)));
+  })
+  .onError([](ota_error_t error) {
+    Serial.printf("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) {
+      Serial.println("Auth Failed");
+    } else if (error == OTA_BEGIN_ERROR) {
+      Serial.println("Begin Failed");
+    } else if (error == OTA_CONNECT_ERROR) {
+      Serial.println("Connect Failed");
+    } else if (error == OTA_RECEIVE_ERROR) {
+      Serial.println("Receive Failed");
+    } else if (error == OTA_END_ERROR) {
+      Serial.println("End Failed");
+    }
+  });
+
+ArduinoOTA.begin();
+
 }
 
 // vim:sts=4:sw=4
