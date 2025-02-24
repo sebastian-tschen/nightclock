@@ -4,9 +4,11 @@
   date:      2016/04/27
 */
 
-#ifndef LEDMatrix_h
-#define LEDMatrix_h
+#ifndef LEDMATRIX_H
+#define LEDMATRIX_H
+
 #include "gfxfont.h"
+#include "FastLED.h"
 
 enum MatrixType_t { HORIZONTAL_MATRIX,
                     VERTICAL_MATRIX,
@@ -622,4 +624,4 @@ template<int16_t tMWidth, int16_t tMHeight, MatrixType_t tMType, int8_t tBWidth 
 
 };
 
-#endif
+#endif // LEDMATRIX_H

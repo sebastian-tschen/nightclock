@@ -9,10 +9,9 @@
   Written & tested on a Teensy 3.1 using Arduino V1.6.3 & teensyduino V1.22
 */
 
-#include <FastLED.h>
 #include <LEDMatrix.h>
- #include <pgmspace.h>
- #define pgm_read_pointer(addr) ((void *)pgm_read_dword(addr))
+#include <pgmspace.h>
+#define pgm_read_pointer(addr) ((void *)pgm_read_dword(addr))
 
 cLEDMatrixBase::cLEDMatrixBase()
 {

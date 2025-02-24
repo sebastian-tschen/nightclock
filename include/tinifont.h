@@ -1,3 +1,6 @@
+#ifndef TINIFONT_H
+#define TINIFONT_H
+
 /**
 *  tiny font just for numbers 3x7
 *  2 styles 'square ascii-10' and 'round ascii'
@@ -210,3 +213,5 @@ const GFXfont Font2x5FixedMonoNum PROGMEM = {
   (uint8_t  *)Font2x5FixedMonoNumBitmaps,
   (GFXglyph *)Font2x5FixedMonoNumGlyphs,
   0x30, 0x3A, 5};
+
+#endif // TINIFONT_H
