@@ -1,24 +1,37 @@
-#ifndef NC_MAIN_HPP
-#define NC_MAIN_HPP
-
 #include <stdint.h>
 #include <stdbool.h>
+
 #include <FastLED.h>
+
+#ifdef ENABLE_WCLI
+#include "wcli.hpp"
+
+#define CONFIG_GET_INT(key, def) wcli.getInt(key, def);
+#else
+#define CONFIG_GET_INT(key, def) (def)
+#endif // ENABLE_WCLI
+
+#ifdef ENABLE_REMOTE_DEBUG
 #define WEBSOCKET_DISABLED true
 #include "RemoteDebug.h"
+#define LOG_V(fmt, ...) debugV(fmt, ##__VA_ARGS__)
+
+#else
+#define LOG_V(...) Serial.printf(__VA_ARGS__)
+#endif // ENABLE_REMOTE_DEBUG
 
 #define PIN 33
 
 #define BRIGHTNESS_AVERAGE_COUNT 10
 #define MIN_BRIGHTNESS 30
 #define MIN_DARK_BRIGHTNESS 10
-#define MIN_COLOR CRGB(1, 0, 0)
+#define MIN_COLOR CRGB(1,0,0)
 // #define delay FastLED.delay
 
 #define MATRIX_WIDTH 9
 #define MATRIX_HEIGHT 12
-#define MATRIX_TYPE VERTICAL_ZIGZAG_MATRIX
-#define NUMMATRIX (MATRIX_WIDTH * MATRIX_HEIGHT)
+#define MATRIX_TYPE         VERTICAL_ZIGZAG_MATRIX
+#define NUMMATRIX (MATRIX_WIDTH*MATRIX_HEIGHT)
 // Define matrix width and height.
 
 #define FRAMES_PER_SECOND 30
@@ -54,8 +67,9 @@ extern uint8_t brightnessMode;
 extern uint8_t fixed_brightness;
 
 extern struct tm timeinfo;
+
+#ifdef ENABLE_REMOTE_DEBUG
 extern RemoteDebug Debug;
+#endif
 
 void setBrightness();
-
-#endif // NC_MAIN_HPP

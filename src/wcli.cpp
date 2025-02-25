@@ -1,6 +1,17 @@
-
+#ifdef ENABLE_WCLI
 #include <main.hpp>
 #include <wcli.hpp>
+#include "esp_bt_device.h"
+
+void setNTPServer(char *args, Stream *response);
+void setColor(char *args, Stream *response);
+void setBrightness(char *args, Stream *response);
+void setColorMode(char *args, Stream *response);
+void setDisplayMode(char *args, Stream *response);
+void setHueOffset(char *args, Stream *response);
+void printLocalTime(char *args, Stream *response);
+void setTimeZone(char *args, Stream *response);
+void printAddress(char *args, Stream *response);
 
 class mESP32WifiCLICallbacks : public ESP32WifiCLICallbacks
 {
@@ -23,6 +34,7 @@ void setupWCLI()
   wcli.add("displaymode", &setDisplayMode, "\tset display mode. T for time, F for full screen");
   wcli.add("colormode", &setColorMode, "\tset Color mode. D for Day, H for Hour, M for Minute and C for constant color");
   wcli.add("brightness", &setBrightness, "\tset brightness. can be 0-255 or auto");
+  wcli.add("printadress", &printAddress, "\tprint device Bluetooth address");
 
   // NTP init
   updateTimeSettings();
@@ -96,6 +108,12 @@ void setBrightness(char *args, Stream *response)
   }
 }
 
+void printAddress(char *args, Stream *response)
+{
+  const uint8_t* mac = esp_bt_dev_get_address();
+  response->printf("Bluetooth address: %02X:%02X:%02X:%02X:%02X:%02X\r\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
+}
+
 void setColorMode(char *args, Stream *response)
 {
   Pair<String, String> operands = wcli.parseCommand(args);
@@ -165,3 +183,4 @@ void printLocalTime(char *args, Stream *response)
   }
   response->println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
 }
+#endif

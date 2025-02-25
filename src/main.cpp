@@ -2,7 +2,7 @@
 // #include <FastLED_GFX.h>
 #include <LEDMatrix.h>
 #include <tinifont.h>
-#include "wcli.hpp"
+
 #include "WiFi.h"
 #include <ESP32WifiCLI.hpp>
 #include "esp_sntp.h"
@@ -10,7 +10,24 @@
 #include "main.hpp"
 #include <ota.hpp>
 #include <color.h>
-#include <ArduinoOTA.h> //https://github.com/JoaoLopesF/RemoteDebug
+#include <ArduinoOTA.h>
+
+
+bool gReverseDirection = false;
+cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
+
+
+void matrix_show() {
+    FastLED.show();
+}
+void matrix_clear() {
+    FastLED.clear();
+}
+
+static const char* TAG = "nightclock";
+
+bool foo;
+
 
 const char *key_ntp_server = "kntpserver";
 const char *key_tzone = "ktzone";
@@ -34,130 +51,117 @@ uint8_t brightnessMode = AUTO_MODE;
 uint8_t fixed_brightness = 100;
 
 struct tm timeinfo;
+
+
+#ifdef ENABLE_REMOTE_DEBUG
 RemoteDebug Debug;
+#endif
 
-bool gReverseDirection = false;
-cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
 
-void matrix_show()
-{
-  FastLED.show();
-}
-void matrix_clear()
-{
-  FastLED.clear();
-}
 
-static const char *TAG = "nightclock";
-
-void displayFullScreen()
-{
+void displayFullScreen() {
   CRGB color = getTextColor();
-  matrix.DrawFilledRectangle(0, 0, MATRIX_WIDTH, MATRIX_HEIGHT, color);
+  matrix.DrawFilledRectangle(0,0,MATRIX_WIDTH, MATRIX_HEIGHT, color);
   matrix_show();
 }
 
-void displayTime()
-{
 
-  // matrix.DrawCircle(4,6,1,getColorForMinute(info));
-  matrix.setFont(&Font3x5FixedNum);
-  matrix_clear();
-  CRGB color = getTextColor();
-  // print hours
-  matrix.DrawChar(1, 5, timeinfo.tm_hour / 10 + '0', color, 0, 1);
-  matrix.DrawChar(5, 5, timeinfo.tm_hour % 10 + '0', color, 0, 1);
+void displayTime() {
 
-  // print minutes
-  matrix.DrawChar(1, 12, timeinfo.tm_min / 10 + '0', color, 0, 1);
-  matrix.DrawChar(5, 12, timeinfo.tm_min % 10 + '0', color, 0, 1);
-  matrix_show();
+    // matrix.DrawCircle(4,6,1,getColorForMinute(info));
+    matrix.setFont(&Font3x5FixedNum);
+    matrix_clear();
+    CRGB color = getTextColor();
+    // print hours
+    matrix.DrawChar(1,5,timeinfo.tm_hour/10+'0',color,0,1);
+    matrix.DrawChar(5,5,timeinfo.tm_hour%10+'0',color,0,1);
+
+    // print minutes
+    matrix.DrawChar(1,12,timeinfo.tm_min/10+'0',color,0,1);
+    matrix.DrawChar(5,12,timeinfo.tm_min%10+'0',color,0,1);
+    matrix_show();
+
+
 }
 
-void updateDisplay()
-{
-  if (displayMode == TIME)
-  {
+void updateDisplay() {
+  if(displayMode == TIME){
     displayTime();
-  }
-  else if (displayMode == FULLSCREEN)
-  {
+  } else if(displayMode == FULLSCREEN){
     displayFullScreen();
   }
 }
 
-void updateAmbientLight()
-{
+void updateAmbientLight() {
 
-  uint16_t brightness = analogRead(34);
+    uint16_t brightness = analogRead(34);
 
-  // Subtract the oldest reading from the sum
-  sum -= ambientBrightnessReadings[rollingBrightnesIndex];
-  // Add the new reading to the sum
-  ambientBrightnessReadings[rollingBrightnesIndex] = brightness;
-  sum += brightness;
+    // Subtract the oldest reading from the sum
+    sum -= ambientBrightnessReadings[rollingBrightnesIndex];
+    // Add the new reading to the sum
+    ambientBrightnessReadings[rollingBrightnesIndex] = brightness;
+    sum += brightness;
 
-  // Move to the next index, wrapping around if necessary
-  rollingBrightnesIndex = (rollingBrightnesIndex + 1) % BRIGHTNESS_AVERAGE_COUNT;
+    // Move to the next index, wrapping around if necessary
+    rollingBrightnesIndex = (rollingBrightnesIndex + 1) % BRIGHTNESS_AVERAGE_COUNT;
 
-  // Calculate the running average
-  averageAmbientBrightness = sum / BRIGHTNESS_AVERAGE_COUNT;
-  debugV("averageAmbientBrightness: %d", averageAmbientBrightness);
+    // Calculate the running average
+    averageAmbientBrightness = sum / BRIGHTNESS_AVERAGE_COUNT;
+
+
+    ESP_LOGD(TAG, "%d",averageAmbientBrightness);
+
 }
 
-void rainbow_wave(uint8_t thisSpeed, uint8_t deltaHue)
-{
-  FastLED.setBrightness(map(averageAmbientBrightness, 0, 4095, MIN_DARK_BRIGHTNESS, 255));
-  uint8_t thisHue = beat8(thisSpeed, 255);               // A simple rainbow march.
-  fill_rainbow(matrix[0], NUMMATRIX, thisHue, deltaHue); // Use FastLED's fill_rainbow routine.
+void rainbow_wave(uint8_t thisSpeed, uint8_t deltaHue) {
+  FastLED.setBrightness(map(averageAmbientBrightness,0,4095,MIN_DARK_BRIGHTNESS,255));
+  uint8_t thisHue = beat8(thisSpeed,255);                     // A simple rainbow march.
+  fill_rainbow(matrix[0], NUMMATRIX, thisHue, deltaHue);            // Use FastLED's fill_rainbow routine.
   FastLED.show();
 }
 
-void delayForFPS()
-{
+void delayForFPS(){
   static uint32_t lastFrame = 0;
   uint32_t currentFrame = millis();
   uint32_t frameTime = 1000 / FRAMES_PER_SECOND;
-  if (currentFrame - lastFrame < frameTime)
-  {
+  if (currentFrame - lastFrame < frameTime){
     delay(frameTime - (currentFrame - lastFrame));
   }
   lastFrame = millis();
 }
 
-void setupFastLED()
-{
+void setupFastLED(){
+  
+    // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(0xFFC0F0);
+    FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
+    // FastLED.addLeds<WS2811, PIN, GRB>(matrix[0], matrix.Size()).setCorrection(UncorrectedColor);
+    FastLED.setBrightness(255);
 
-  // FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(0xFFC0F0);
-  FastLED.addLeds<NEOPIXEL, PIN>(matrix[0], matrix.Size()).setCorrection(TypicalLEDStrip);
-  // FastLED.addLeds<WS2811, PIN, GRB>(matrix[0], matrix.Size()).setCorrection(UncorrectedColor);
-  FastLED.setBrightness(255);
 
-  FastLED.clear();
-  FastLED.show();
+    FastLED.clear();
+    FastLED.show();
 
-  // Time for serial port to work?
-  Serial.print("Init on pin: ");
-  Serial.println(PIN);
-  Serial.print("Matrix Size: ");
-  Serial.print(MATRIX_WIDTH);
-  Serial.print(" ");
-  Serial.print(MATRIX_HEIGHT);
-  Serial.print(" ");
-  Serial.println(NUMMATRIX);
+    // Time for serial port to work?
+    Serial.print("Init on pin: ");
+    Serial.println(PIN);
+    Serial.print("Matrix Size: ");
+    Serial.print(MATRIX_WIDTH);
+    Serial.print(" ");
+    Serial.print(MATRIX_HEIGHT);
+    Serial.print(" ");
+    Serial.println(NUMMATRIX);
 
-  esp_log_level_set(TAG, ESP_LOG_WARN);
-  esp_log_level_set("*", ESP_LOG_WARN);
+    esp_log_level_set(TAG, ESP_LOG_WARN);
+    esp_log_level_set("*", ESP_LOG_WARN);
+
 }
 
-void loop()
-{
-  updateAmbientLight();
-  getLocalTime(&timeinfo);
-  updateDisplay();
-  ArduinoOTA.handle();
+void loop() {
+
   wcli.loop();
-  debugHandle();
+  updateDisplay();
+  updateAmbientLight();
+  ArduinoOTA.handle();
   delayForFPS();
 }
 
@@ -168,18 +172,20 @@ void setup()
 
   Serial.begin(115200);
 
-  // Debug.showProfiler(true); // To show profiler - time between messages of Debug
-
+  #ifdef ENABLE_WCLI
   setupWCLI();
+  #endif // ENABLE_WCLI
   setupFastLED();
   setupOTA();
 
+  #ifdef ENABLE_WCLI
   while (!wcli_setup_ready)
   {
     updateAmbientLight();
     rainbow_wave(10, 2);
     wcli.loop();
   }
+  #endif // ENABLE_WCLI
 
   while (!getLocalTime(&timeinfo, 1000 / FRAMES_PER_SECOND))
   {
@@ -187,8 +193,9 @@ void setup()
     rainbow_wave(40, 2);
   }
   FastLED.setBrightness(255); // fix brightness to max. most modes will sett brightness via color
-
+  #ifdef ENABLE_REMOTE_DEBUG
   Debug.begin(TAG);
   Debug.setResetCmdEnabled(true); // Enable the reset command
+  #endif // ENABLE_REMOTE_DEBUG
 }
 // vim:sts=4:sw=4

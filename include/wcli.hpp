@@ -1,3 +1,5 @@
+
+#ifdef ENABLE_WCLI
 #ifndef WCLI_HPP
 #define WCLI_HPP
 
@@ -11,15 +13,7 @@
 #define DAY_LIGHT_OFFSET_SEC         0
 
 void setupWCLI();
-
-void setNTPServer(char *args, Stream *response);
-void setColor(char *args, Stream *response);
-void setBrightness(char *args, Stream *response);
-void setColorMode(char *args, Stream *response);
-void setDisplayMode(char *args, Stream *response);
-void setHueOffset(char *args, Stream *response);
-void printLocalTime(char *args, Stream *response);
-void setTimeZone(char *args, Stream *response);
 void updateTimeSettings();
 
 #endif // WCLI_HPP
+#endif

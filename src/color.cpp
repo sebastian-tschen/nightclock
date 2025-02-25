@@ -1,10 +1,13 @@
 #include "main.hpp"
 #include "time.h"
 #include "color.h"
+#ifdef ENABLE_WCLI
 #include "wcli.hpp"
+#endif
 
-#define WEBSOCKET_DISABLED true
+#ifdef ENABLE_REMOTE_DEBUG
 #include "RemoteDebug.h"
+#endif
 
 int getHueForTimeInterval(uint8_t interval_mode, struct tm *timeinfo)
 {
@@ -56,7 +59,7 @@ CRGB getColorForTime(uint8_t interval_mode, struct tm *timeinfo, uint8_t hueOffs
     color = CHSV(hue, 255, brightness);
   }
 
-  debugV("H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
+  LOG_V("H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
 
@@ -66,10 +69,10 @@ CRGB getTextColor()
 
   if (colorMode == CONSTANT_MODE)
   {
-    return CRGB(wcli.getInt(key_color, default_color));
+    return CRGB(CONFIG_GET_INT(key_color, default_color));
   }
   else
   {
-    return getColorForTime(colorMode, &timeinfo, wcli.getInt(key_hue_offset, 0));
+    return getColorForTime(colorMode, &timeinfo, CONFIG_GET_INT(key_hue_offset, 0));
   }
 }
