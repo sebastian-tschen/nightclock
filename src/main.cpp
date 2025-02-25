@@ -4,9 +4,6 @@
 #include <tinifont.h>
 
 #include "WiFi.h"
-#ifdef ENABLE_WCLI
-#include <ESP32WifiCLI.hpp>
-#endif // ENABLE_WCLI
 #include "esp_sntp.h"
 #include "time.h"
 #include "main.hpp"
@@ -41,7 +38,6 @@ const char *default_tzone = "CET-1CEST,M3.5.0,M10.5.0/3";
 const int default_color = 0xffffff;
 const char *default_display_mode = TIME;
 
-bool wcli_setup_ready = false;
 bool hueConfigMode = false;
 
 uint16_t ambientBrightnessReadings[BRIGHTNESS_AVERAGE_COUNT] = {0};
@@ -175,10 +171,7 @@ void setupSimpleWifi()
 }
 
 void loop() {
-
-  #ifdef ENABLE_WCLI
-  wcli.loop();
-  #endif 
+  getLocalTime(&timeinfo, 1000 / FRAMES_PER_SECOND);
   updateDisplay();
   updateAmbientLight();
   ArduinoOTA.handle();
@@ -192,24 +185,11 @@ void setup()
 
   Serial.begin(115200);
 
-  #ifdef ENABLE_WCLI
-  setupWCLI();
-  #else
   setupSimpleWifi();
-  #endif // ENABLE_WCLI
   
   setupFastLED();
   setupOTA();
   setupDS4();
-
-  #ifdef ENABLE_WCLI
-  while (!wcli_setup_ready)
-  {
-    updateAmbientLight();
-    rainbow_wave(10, 2);
-    wcli.loop();
-  }
-  #endif // ENABLE_WCLI
 
   while (!getLocalTime(&timeinfo, 1000 / FRAMES_PER_SECOND))
   {

@@ -1,9 +1,6 @@
 #include "main.hpp"
 #include "time.h"
 #include "color.h"
-#ifdef ENABLE_WCLI
-#include "wcli.hpp"
-#endif
 
 #ifdef ENABLE_REMOTE_DEBUG
 #include "RemoteDebug.h"
@@ -69,7 +66,7 @@ CRGB getTextColor()
 
   if (colorMode == CONSTANT_MODE)
   {
-    return CRGB(CONFIG_GET_INT(key_color, default_color));
+    return CRGB(default_color);
   }
   else
   {

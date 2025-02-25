@@ -3,13 +3,6 @@
 
 #include <FastLED.h>
 
-#ifdef ENABLE_WCLI
-#include "wcli.hpp"
-
-#define CONFIG_GET_INT(key, def) wcli.getInt(key, def)
-#else
-#define CONFIG_GET_INT(key, def) (def)
-#endif // ENABLE_WCLI
 
 #ifdef ENABLE_REMOTE_DEBUG
 #define WEBSOCKET_DISABLED true
@@ -55,7 +48,6 @@ extern const char *default_tzone;
 extern const int default_color;
 extern const char *default_display_mode;
 
-extern bool wcli_setup_ready;
 extern bool hueConfigMode;
 
 extern uint16_t ambientBrightnessReadings[BRIGHTNESS_AVERAGE_COUNT];
