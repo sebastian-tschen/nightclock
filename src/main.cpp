@@ -4,14 +4,16 @@
 #include <tinifont.h>
 
 #include "WiFi.h"
+#ifdef ENABLE_WCLI
 #include <ESP32WifiCLI.hpp>
+#endif // ENABLE_WCLI
 #include "esp_sntp.h"
 #include "time.h"
 #include "main.hpp"
 #include <ota.hpp>
 #include <color.h>
 #include <ArduinoOTA.h>
-
+#include <ds4.h>
 
 bool gReverseDirection = false;
 cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
@@ -40,6 +42,7 @@ const int default_color = 0xffffff;
 const char *default_display_mode = TIME;
 
 bool wcli_setup_ready = false;
+bool hueConfigMode = false;
 
 uint16_t ambientBrightnessReadings[BRIGHTNESS_AVERAGE_COUNT] = {0};
 uint8_t rollingBrightnesIndex = 0;
@@ -49,6 +52,7 @@ uint8_t displayMode = TIME;
 uint8_t colorMode = DAY_MODE;
 uint8_t brightnessMode = AUTO_MODE;
 uint8_t fixed_brightness = 100;
+uint8_t hueOffsetSetting = 0;
 
 struct tm timeinfo;
 
@@ -156,9 +160,25 @@ void setupFastLED(){
 
 }
 
+void setupSimpleWifi()
+{
+  WiFi.begin("SSid", "passwd");
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.println("Connecting to WiFi..");
+  }
+  Serial.println("Connected to the WiFi network");
+  configTime(3600*8, 0, default_server, "pool.ntp.org");
+  setenv("TZ", default_tzone, 1);
+  tzset();
+}
+
 void loop() {
 
+  #ifdef ENABLE_WCLI
   wcli.loop();
+  #endif 
   updateDisplay();
   updateAmbientLight();
   ArduinoOTA.handle();
@@ -174,9 +194,13 @@ void setup()
 
   #ifdef ENABLE_WCLI
   setupWCLI();
+  #else
+  setupSimpleWifi();
   #endif // ENABLE_WCLI
+  
   setupFastLED();
   setupOTA();
+  setupDS4();
 
   #ifdef ENABLE_WCLI
   while (!wcli_setup_ready)

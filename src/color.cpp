@@ -56,10 +56,10 @@ CRGB getColorForTime(uint8_t interval_mode, struct tm *timeinfo, uint8_t hueOffs
   else
   {
     // Convert the hue to an RGB value
-    color = CHSV(hue, 255, brightness);
+    color = CHSV(hue+hueOffset, 255, brightness);
   }
 
-  LOG_V("H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
+  // LOG_V("H HSV: %d %d %d RGB: %d %d %d\r\n", hue, 255, brightness, color.r, color.g, color.b);
   return color;
 }
 
@@ -73,6 +73,6 @@ CRGB getTextColor()
   }
   else
   {
-    return getColorForTime(colorMode, &timeinfo, CONFIG_GET_INT(key_hue_offset, 0));
+    return getColorForTime(colorMode, &timeinfo, hueOffsetSetting);
   }
 }

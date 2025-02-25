@@ -11,7 +11,7 @@
 unsigned long lastTimeStamp = 0;
 #define EVENTS 0
 #define BUTTONS 0
-#define JOYSTICKS 1
+#define JOYSTICKS 0
 #define SENSORS 0
 
 void removePairedDevices();
@@ -41,20 +41,24 @@ void onConnect() {
 }
 
 void notify() {
-#if EVENTS
-  boolean sqd = PS4.event.button_down.square,
-          squ = PS4.event.button_up.square,
-          trd = PS4.event.button_down.triangle,
-          tru = PS4.event.button_up.triangle;
-  if (sqd)
-    Serial.println("SQUARE down");
-  else if (squ)
-    Serial.println("SQUARE up");
-  else if (trd)
-    Serial.println("TRIANGLE down");
-  else if (tru)
-    Serial.println("TRIANGLE up");
-#endif
+  #if EVENTS
+    boolean sqd = PS4.event.button_down.square,
+            squ = PS4.event.button_up.square,
+            trd = PS4.event.button_down.triangle,
+            tru = PS4.event.button_up.triangle,
+            upd = PS4.event.button_up.down,
+            upu = PS4.event.button_up.up,
+            dou = PS4.event.button_down.up,
+            dod = PS4.event.button_down.down;
+    if (PS4.event.button_down.up)
+      Serial.println("^");
+    else if (PS4.event.button_down.down)
+      Serial.println("|");
+    else if (PS4.event.button_down.right)
+      Serial.println(">");
+    else if (PS4.event.button_down.left)
+      Serial.println("<");
+  #endif
 
 #if BUTTONS
   boolean sq = PS4.Square(),
@@ -87,6 +91,24 @@ void notify() {
 #endif
     lastTimeStamp = millis();
   }
+
+  if (PS4.event.button_down.cross){
+    hueConfigMode = true;
+  }
+  if (hueConfigMode){
+    int8_t x = PS4.LStickX();
+    int8_t y = PS4.LStickY();
+    float r = sqrt(x * x + y * y);
+    float theta = atan2(y, x);
+    hueOffsetSetting = map(theta * 180 / PI, -180, 180, 0, 255);
+    Serial.printf("hueOffset: %d\n", hueOffsetSetting);
+    if (PS4.event.button_up.cross){
+      hueConfigMode = false;
+    }
+  }
+
+
+
 }
 
 void onDisConnect() {

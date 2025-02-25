@@ -6,7 +6,7 @@
 #ifdef ENABLE_WCLI
 #include "wcli.hpp"
 
-#define CONFIG_GET_INT(key, def) wcli.getInt(key, def);
+#define CONFIG_GET_INT(key, def) wcli.getInt(key, def)
 #else
 #define CONFIG_GET_INT(key, def) (def)
 #endif // ENABLE_WCLI
@@ -56,6 +56,7 @@ extern const int default_color;
 extern const char *default_display_mode;
 
 extern bool wcli_setup_ready;
+extern bool hueConfigMode;
 
 extern uint16_t ambientBrightnessReadings[BRIGHTNESS_AVERAGE_COUNT];
 extern uint8_t rollingBrightnesIndex;
@@ -65,6 +66,7 @@ extern uint8_t displayMode;
 extern uint8_t colorMode;
 extern uint8_t brightnessMode;
 extern uint8_t fixed_brightness;
+extern uint8_t hueOffsetSetting;
 
 extern struct tm timeinfo;
 
