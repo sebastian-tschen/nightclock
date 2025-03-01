@@ -1,16 +1,16 @@
 // #include <Adafruit_GFX.h>
 // #include <FastLED_GFX.h>
-#include <LEDMatrix.h>
+#include "main.hpp"
 #include <tinifont.h>
-
 #include "WiFi.h"
 #include "esp_sntp.h"
 #include "time.h"
-#include "main.hpp"
 #include <ota.hpp>
 #include <color.h>
 #include <ArduinoOTA.h>
 #include <ds4.h>
+#include <config.h>
+#include <snake.h>
 
 bool gReverseDirection = false;
 cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
@@ -53,11 +53,6 @@ uint8_t hueOffsetSetting = 0;
 struct tm timeinfo;
 
 
-#ifdef ENABLE_REMOTE_DEBUG
-RemoteDebug Debug;
-#endif
-
-
 
 void displayFullScreen() {
   CRGB color = getTextColor();
@@ -89,6 +84,9 @@ void updateDisplay() {
     displayTime();
   } else if(displayMode == FULLSCREEN){
     displayFullScreen();
+  } else if(displayMode == SNAKE){
+    snakeLoop();
+    matrix_show();
   }
 }
 
@@ -156,25 +154,17 @@ void setupFastLED(){
 
 }
 
-void setupSimpleWifi()
-{
-  WiFi.begin("SSid", "passwd");
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.println("Connecting to WiFi..");
-  }
-  Serial.println("Connected to the WiFi network");
-  configTime(3600*8, 0, default_server, "pool.ntp.org");
-  setenv("TZ", default_tzone, 1);
+void initTime(){
+  configTime(0, 0, "pool.ntp.org","time.nist.gov");
+  setenv("TZ", "CET-1CEST,M3.5.0,M10.5.0/3", 1);
   tzset();
 }
-
 void loop() {
   getLocalTime(&timeinfo, 1000 / FRAMES_PER_SECOND);
   updateDisplay();
   updateAmbientLight();
   ArduinoOTA.handle();
+  loopConfigAssist();
   delayForFPS();
 }
 
@@ -185,21 +175,20 @@ void setup()
 
   Serial.begin(115200);
 
-  setupSimpleWifi();
-  
+  setupConfigAssist();  
+  initTime();
   setupFastLED();
   setupOTA();
   setupDS4();
 
   while (!getLocalTime(&timeinfo, 1000 / FRAMES_PER_SECOND))
   {
+    loopConfigAssist();
     updateAmbientLight();
     rainbow_wave(40, 2);
   }
   FastLED.setBrightness(255); // fix brightness to max. most modes will sett brightness via color
-  #ifdef ENABLE_REMOTE_DEBUG
-  Debug.begin(TAG);
-  Debug.setResetCmdEnabled(true); // Enable the reset command
-  #endif // ENABLE_REMOTE_DEBUG
+  resetGame();
+
 }
 // vim:sts=4:sw=4

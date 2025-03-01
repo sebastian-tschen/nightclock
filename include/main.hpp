@@ -1,17 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
-
+#include <LEDMatrix.h>
 #include <FastLED.h>
 
-
-#ifdef ENABLE_REMOTE_DEBUG
-#define WEBSOCKET_DISABLED true
-#include "RemoteDebug.h"
-#define LOG_V(fmt, ...) debugV(fmt, ##__VA_ARGS__)
-
-#else
-#define LOG_V(...) Serial.printf(__VA_ARGS__)
-#endif // ENABLE_REMOTE_DEBUG
 
 #define PIN 33
 
@@ -31,6 +22,9 @@
 
 #define TIME 0
 #define FULLSCREEN 1
+#define SNAKE 2
+
+
 #define DAY_MODE 0
 #define HOUR_MODE 1
 #define MINUTE_MODE 2
@@ -62,8 +56,8 @@ extern uint8_t hueOffsetSetting;
 
 extern struct tm timeinfo;
 
-#ifdef ENABLE_REMOTE_DEBUG
-extern RemoteDebug Debug;
-#endif
+extern cLEDMatrix<-MATRIX_WIDTH, -MATRIX_HEIGHT, MATRIX_TYPE> matrix;
 
 void setBrightness();
+void matrix_show();
+void matrix_clear();

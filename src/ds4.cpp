@@ -4,9 +4,8 @@
 #include "esp_gap_bt_api.h"
 #include "main.hpp"
 #include "esp_err.h"
-#ifdef ENABLE_REMOTE_DEBUG
-#include "RemoteDebug.h"
-#endif
+#include "espLogger.h"
+#include <snake.h>
 
 unsigned long lastTimeStamp = 0;
 #define EVENTS 0
@@ -101,13 +100,48 @@ void notify() {
     float r = sqrt(x * x + y * y);
     float theta = atan2(y, x);
     hueOffsetSetting = map(theta * 180 / PI, -180, 180, 0, 255);
-    Serial.printf("hueOffset: %d\n", hueOffsetSetting);
+    LOG_D("hueOffset: %d\n", hueOffsetSetting);
     if (PS4.event.button_up.cross){
       hueConfigMode = false;
     }
   }
 
+  if (PS4.event.button_down.up){
+    if (direction == D_DOWN || direction == D_UP){
+      return;
+    }
+    direction = D_UP;
+    LOG_D("UP\n");
+  }
 
+  if (PS4.event.button_down.down){
+    if (direction == D_DOWN || direction == D_UP){
+      return;
+    }
+    direction = D_DOWN;
+    LOG_D("DOWN\n");
+  }
+
+  if (PS4.event.button_down.left){
+    if (direction == D_LEFT || direction == D_RIGHT){
+      return;
+    }
+    direction = D_LEFT;
+    LOG_D("LEFT\n");
+  }
+
+  if (PS4.event.button_down.right){
+    if (direction == D_LEFT || direction == D_RIGHT){
+      return;
+    }
+    direction = D_RIGHT;
+    LOG_D("RIGHT\n");
+  }
+
+  if (PS4.event.button_down.share){
+    displayMode = (displayMode+1)%3;
+    LOG_D("displayMode: %d\n", displayMode);
+  }
 
 }
 

@@ -2,9 +2,6 @@
 #include "time.h"
 #include "color.h"
 
-#ifdef ENABLE_REMOTE_DEBUG
-#include "RemoteDebug.h"
-#endif
 
 int getHueForTimeInterval(uint8_t interval_mode, struct tm *timeinfo)
 {
