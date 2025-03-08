@@ -110,36 +110,36 @@ void notify() {
     if (direction == D_DOWN || direction == D_UP){
       return;
     }
-    direction = D_UP;
-    LOG_D("UP\n");
+    nextDirection = D_UP;
+    // LOG_D("UP\n");
   }
 
   if (PS4.event.button_down.down){
     if (direction == D_DOWN || direction == D_UP){
       return;
     }
-    direction = D_DOWN;
-    LOG_D("DOWN\n");
+    nextDirection = D_DOWN;
+    // LOG_D("DOWN\n");
   }
 
   if (PS4.event.button_down.left){
     if (direction == D_LEFT || direction == D_RIGHT){
       return;
     }
-    direction = D_LEFT;
-    LOG_D("LEFT\n");
+    nextDirection = D_LEFT;
+    // LOG_D("LEFT\n");
   }
 
   if (PS4.event.button_down.right){
     if (direction == D_LEFT || direction == D_RIGHT){
       return;
     }
-    direction = D_RIGHT;
-    LOG_D("RIGHT\n");
+    nextDirection = D_RIGHT;
+    // LOG_D("RIGHT\n");
   }
 
   if (PS4.event.button_down.share){
-    displayMode = (displayMode+1)%3;
+    displayMode = (displayMode+1)%DISPLAY_MODE_COUNT;
     LOG_D("displayMode: %d\n", displayMode);
   }
 

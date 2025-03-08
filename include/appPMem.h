@@ -14,13 +14,17 @@ const char* VARIABLES_DEF_YAML PROGMEM = R"~(
           default: configAssist_{mac}
     
     Application settings:
-      - app_name:
-          label: Name your application
-          default: ConfigAssistDemo
-      - led_buildin:
-          label: Enter the pin that the build in led is connected.
-            Leave blank for auto.
-          attribs: "min='2' max='23' step='1'"
+      - allTimeHighScore:
+          label: all time highscore
+          attribs: "min='0' max='99' step='1'"
+      - dailyHighScoreDate:
+          label: date of last dailyHighscore
+      - dailyHighScore:
+          label: last dailyHighscore
+          attribs: "min='0' max='99' step='1'"
+      - hueOffset:
+          label: Clock Hue Offset
+          attribs: "min='0' max='255'"
       - debug:
           label: Debug application
           checked: true      

@@ -53,14 +53,6 @@ uint8_t hueOffsetSetting = 0;
 struct tm timeinfo;
 
 
-
-void displayFullScreen() {
-  CRGB color = getTextColor();
-  matrix.DrawFilledRectangle(0,0,MATRIX_WIDTH, MATRIX_HEIGHT, color);
-  matrix_show();
-}
-
-
 void displayTime() {
 
     // matrix.DrawCircle(4,6,1,getColorForMinute(info));
@@ -82,9 +74,8 @@ void displayTime() {
 void updateDisplay() {
   if(displayMode == TIME){
     displayTime();
-  } else if(displayMode == FULLSCREEN){
-    displayFullScreen();
-  } else if(displayMode == SNAKE){
+  }
+  else if(displayMode == SNAKE){
     snakeLoop();
     matrix_show();
   }
@@ -178,15 +169,15 @@ void setup()
   setupConfigAssist();  
   initTime();
   setupFastLED();
-  setupOTA();
-  setupDS4();
-
-  while (!getLocalTime(&timeinfo, 1000 / FRAMES_PER_SECOND))
+  
+  while (!getLocalTime(&timeinfo, 10))
   {
     loopConfigAssist();
     updateAmbientLight();
     rainbow_wave(40, 2);
   }
+  setupOTA();
+  setupDS4();
   FastLED.setBrightness(255); // fix brightness to max. most modes will sett brightness via color
   resetGame();
 

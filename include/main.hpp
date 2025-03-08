@@ -20,9 +20,10 @@
 
 #define FRAMES_PER_SECOND 30
 
+#define DISPLAY_MODE_COUNT 2
 #define TIME 0
-#define FULLSCREEN 1
-#define SNAKE 2
+#define SNAKE 1
+
 
 
 #define DAY_MODE 0

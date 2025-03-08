@@ -69,11 +69,11 @@ void onDataChanged(String key){
 // Setup function
 void setupConfigAssist(void) {
 
-#if defined(CA_USE_LITTLEFS)
-  LOG_I("Starting with LITTLEFS.. \n");
-#else
-  LOG_I("Starting with SPIFFS.. \n");
-#endif
+  #if defined(CA_USE_LITTLEFS)
+    LOG_I("Starting with LITTLEFS.. \n");
+  #else
+    LOG_I("Starting with SPIFFS.. \n");
+  #endif
 
   debugMemory("setup");
 
@@ -135,6 +135,16 @@ void setupConfigAssist(void) {
               break;
       }
   });
+
+  // initial config value setup to defaults
+  if (conf("dailyHighScore") == "")  conf["dailyHighScore"] = "0";
+  if (conf("dailyHighScoreDate") == "")  conf["dailyHighScoreDate"] = "0";
+  if (conf("allTimeHighScore") == "")  conf["allTimeHighScore"] = "0";
+
+  LOG_I("dailyHighScore: %s\n", conf("dailyHighScore").c_str());
+  LOG_I("dailyHighScoreDate: %s\n", conf("dailyHighScoreDate").c_str());
+  LOG_I("allTimeHighScore: %s\n", conf("allTimeHighScore").c_str());
+
 }
 
 // App main loop

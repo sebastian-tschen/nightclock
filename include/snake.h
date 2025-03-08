@@ -6,6 +6,7 @@
 #define MAX_SNAKE_LENGTH (MATRIX_HEIGHT * MATRIX_WIDTH)
 
 extern uint8_t direction;
+extern uint8_t nextDirection;
 
 extern uint16_t snakeSpeed;
 
